@@ -1,0 +1,54 @@
+trigger:
+- main
+
+pool:
+  name: self-hosted
+
+variables:
+  buildConfiguration: Release
+
+steps:
+# ---------------- CHECKOUT ----------------
+- checkout: self
+
+# ---------------- VERIFY AGENT ----------------
+- script: |
+    echo "Agent verification"
+    hostname
+    whoami
+    dotnet --version
+  displayName: 'Verify self-hosted agent'
+
+# ---------------- DOTNET BUILD ----------------
+- script: |
+    cd dotnet-app
+    dotnet restore
+    dotnet build --configuration $(buildConfiguration)
+    dotnet publish --configuration $(buildConfiguration) --output ../artifacts/dotnet
+  displayName: 'Build & Publish .NET App'
+
+# ---------------- OWASP DEPENDENCY CHECK ----------------
+- script: |
+    echo "Running OWASP Dependency Check"
+    mkdir -p owasp
+    curl -Ls https://github.com/jeremylong/DependencyCheck/releases/download/v8.4.0/dependency-check-8.4.0-release.zip -o dc.zip
+    unzip -q dc.zip
+    ./dependency-check/bin/dependency-check.sh \
+      --scan dotnet-app \
+      --format HTML \
+      --out owasp \
+      --failOnCVSS 7
+  displayName: 'OWASP Security Scan (.NET)'
+
+# ---------------- PUBLISH ARTIFACTS ----------------
+- task: PublishBuildArtifacts@1
+  inputs:
+    pathToPublish: artifacts
+    artifactName: dotnet-build-artifacts
+  displayName: 'Publish .NET Build Artifacts'
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    pathToPublish: owasp
+    artifactName: owasp-security-report
+  displayName: 'Publish OWASP Report'
