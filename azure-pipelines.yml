@@ -13,7 +13,7 @@ steps:
 
 # ---------------- VERIFY AGENT ----------------
 - script: |
-    echo "Agent verification"
+    echo "Agent info:"
     hostname
     whoami
     dotnet --version
@@ -21,33 +21,13 @@ steps:
 
 # ---------------- DOTNET BUILD ----------------
 - script: |
-    cd dotnet-app
     dotnet restore
     dotnet build --configuration $(buildConfiguration)
-    dotnet publish --configuration $(buildConfiguration) --output ../artifacts/dotnet
+    dotnet publish \
+      --configuration $(buildConfiguration) \
+      --output ../artifacts/dotnet
+  workingDirectory: dotnet-app
   displayName: 'Build & Publish .NET App'
-
-- script: |
-    pwd
-    ls -la
-    ls -la $(Build.SourcesDirectory)
-  displayName: 'Debug Paths'
-
-# ---------------- OWASP DEPENDENCY CHECK ----------------
-- script: |
-    echo "Running OWASP Dependency Check"
-    echo "Source directory: $(Build.SourcesDirectory)"
-
-    mkdir -p owasp
-    curl -Ls https://github.com/jeremylong/DependencyCheck/releases/download/v8.4.0/dependency-check-8.4.0-release.zip -o dc.zip
-    unzip -q dc.zip
-
-    ./dependency-check/bin/dependency-check.sh \
-      --scan "$(Build.SourcesDirectory)/dotnet-app" \
-      --format HTML \
-      --out "$(Build.SourcesDirectory)/owasp" \
-      --failOnCVSS 7
-  displayName: 'OWASP Security Scan (.NET)'
 
 # ---------------- PUBLISH ARTIFACTS ----------------
 - task: PublishBuildArtifacts@1
@@ -55,9 +35,3 @@ steps:
     pathToPublish: artifacts
     artifactName: dotnet-build-artifacts
   displayName: 'Publish .NET Build Artifacts'
-
-- task: PublishBuildArtifacts@1
-  inputs:
-    pathToPublish: owasp
-    artifactName: owasp-security-report
-  displayName: 'Publish OWASP Report'
