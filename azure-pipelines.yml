@@ -27,16 +27,25 @@ steps:
     dotnet publish --configuration $(buildConfiguration) --output ../artifacts/dotnet
   displayName: 'Build & Publish .NET App'
 
+- script: |
+    pwd
+    ls -la
+    ls -la $(Build.SourcesDirectory)
+  displayName: 'Debug Paths'
+
 # ---------------- OWASP DEPENDENCY CHECK ----------------
 - script: |
     echo "Running OWASP Dependency Check"
+    echo "Source directory: $(Build.SourcesDirectory)"
+
     mkdir -p owasp
     curl -Ls https://github.com/jeremylong/DependencyCheck/releases/download/v8.4.0/dependency-check-8.4.0-release.zip -o dc.zip
     unzip -q dc.zip
+
     ./dependency-check/bin/dependency-check.sh \
-      --scan dotnet-app \
+      --scan "$(Build.SourcesDirectory)/dotnet-app" \
       --format HTML \
-      --out owasp \
+      --out "$(Build.SourcesDirectory)/owasp" \
       --failOnCVSS 7
   displayName: 'OWASP Security Scan (.NET)'
 
