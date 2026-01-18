@@ -3,7 +3,6 @@ trigger:
 
 pool:
   name: Default
-
 variables:
   buildConfiguration: Release
 
@@ -17,15 +16,12 @@ steps:
     hostname
     whoami
     dotnet --version
-    echo "Sources directory:"
-    echo $(Build.SourcesDirectory)
+    echo "Sources Directory: $(Build.SourcesDirectory)"
+    echo "Artifact Directory: $(Build.ArtifactStagingDirectory)"
   displayName: 'Verify agent & environment'
 
 # ---------------- DOTNET BUILD ----------------
 - script: |
-    echo "Artifact staging directory:"
-    echo $(Build.ArtifactStagingDirectory)
-
     cd dotnet-app
     dotnet restore
     dotnet build --configuration $(buildConfiguration)
@@ -34,9 +30,26 @@ steps:
       --output $(Build.ArtifactStagingDirectory)/dotnet
   displayName: 'Build & Publish .NET App'
 
+# ---------------- OWASP DEPENDENCY CHECK ----------------
+- script: |
+    echo "Running OWASP Dependency Check on .NET app"
+
+    mkdir -p $(Build.ArtifactStagingDirectory)/owasp
+    cd $(Build.SourcesDirectory)
+
+    curl -Ls https://github.com/jeremylong/DependencyCheck/releases/download/v8.4.0/dependency-check-8.4.0-release.zip -o dc.zip
+    unzip -q dc.zip
+
+    ./dependency-check/bin/dependency-check.sh \
+      --scan $(Build.SourcesDirectory)/dotnet-app \
+      --format HTML \
+      --out $(Build.ArtifactStagingDirectory)/owasp \
+      --failOnCVSS 7
+  displayName: 'OWASP Dependency Check (.NET)'
+
 # ---------------- PUBLISH ARTIFACTS ----------------
 - task: PublishBuildArtifacts@1
   inputs:
     pathToPublish: $(Build.ArtifactStagingDirectory)
-    artifactName: dotnet-build-artifacts
-  displayName: 'Publish .NET Build Artifacts'
+    artifactName: dotnet-build-and-security
+  displayName: 'Publish Build & OWASP Artifacts'
