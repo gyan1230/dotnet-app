@@ -30,9 +30,14 @@ steps:
       --output $(Build.ArtifactStagingDirectory)/dotnet
   displayName: 'Build & Publish .NET App'
 
+- script: |
+    echo "Listing repo root:"
+    ls -la $(Build.SourcesDirectory)
+  displayName: 'DEBUG: Repo structure'
+
 # ---------------- OWASP DEPENDENCY CHECK ----------------
 - script: |
-    echo "Running OWASP Dependency Check on .NET app"
+    echo "Running OWASP Dependency Check (repo-level scan)"
 
     mkdir -p $(Build.ArtifactStagingDirectory)/owasp
     cd $(Build.SourcesDirectory)
@@ -41,7 +46,7 @@ steps:
     unzip -q dc.zip
 
     ./dependency-check/bin/dependency-check.sh \
-      --scan $(Build.SourcesDirectory)/dotnet-app \
+      --scan $(Build.SourcesDirectory) \
       --format HTML \
       --out $(Build.ArtifactStagingDirectory)/owasp \
       --failOnCVSS 7
