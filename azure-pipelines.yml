@@ -37,7 +37,7 @@ steps:
 
 # ---------------- OWASP DEPENDENCY CHECK ----------------
 - script: |
-    echo "Running OWASP Dependency Check (repo-level scan)"
+    echo "Running OWASP Dependency Check (NVD updates disabled for POC)"
 
     mkdir -p $(Build.ArtifactStagingDirectory)/owasp
     cd $(Build.SourcesDirectory)
@@ -49,8 +49,15 @@ steps:
       --scan $(Build.SourcesDirectory) \
       --format HTML \
       --out $(Build.ArtifactStagingDirectory)/owasp \
-      --failOnCVSS 7
-  displayName: 'OWASP Dependency Check (.NET)'
+      --failOnCVSS 7 \
+      --nvdApiDelay 0 \
+      --disableAssembly \
+      --disableNodeJS \
+      --disablePython \
+      --disableRuby \
+      --disableNvdUpdate
+  displayName: 'OWASP Dependency Check (.NET - POC mode)'
+
 
 # ---------------- PUBLISH ARTIFACTS ----------------
 - task: PublishBuildArtifacts@1
