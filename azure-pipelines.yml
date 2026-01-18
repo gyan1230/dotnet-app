@@ -38,6 +38,33 @@ steps:
     cp target/*.jar $(Build.ArtifactStagingDirectory)/java/
   displayName: 'Build & Package Java App'
 
+
+# ---------------- DEPLOY DOTNET APP ----------------
+- script: |
+    echo "Deploying .NET app on same agent"
+
+    pkill -f dotnet-app.dll || true
+
+    nohup dotnet $(Build.ArtifactStagingDirectory)/dotnet/dotnet-app.dll \
+      > dotnet.log 2>&1 &
+
+    sleep 5
+    curl http://localhost:5000/weatherforecast
+  displayName: 'Deploy & Verify .NET App'
+
+# ---------------- DEPLOY JAVA APP ----------------
+- script: |
+    echo "Deploying Java app on same agent"
+
+    pkill -f java-app || true
+
+    nohup java -jar $(Build.ArtifactStagingDirectory)/java/*.jar \
+      > java.log 2>&1 &
+
+    sleep 5
+    curl http://localhost:8080/
+  displayName: 'Deploy & Verify Java App'
+
 # ---------------- PUBLISH ARTIFACTS ----------------
 - task: PublishBuildArtifacts@1
   inputs:
