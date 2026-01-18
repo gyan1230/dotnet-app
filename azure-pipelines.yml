@@ -37,7 +37,7 @@ steps:
 
 # ---------------- OWASP DEPENDENCY CHECK ----------------
 - script: |
-    echo "Running OWASP Dependency Check (offline POC mode)"
+    echo "Running OWASP Dependency Check (TRUE offline mode)"
 
     mkdir -p $(Build.ArtifactStagingDirectory)/owasp
     cd $(Build.SourcesDirectory)
@@ -50,7 +50,7 @@ steps:
       --format HTML \
       --out $(Build.ArtifactStagingDirectory)/owasp \
       --failOnCVSS 7 \
-      --propertyfile $(Build.SourcesDirectory)/dependency-check.properties
+      --noupdate
   displayName: 'OWASP Dependency Check (.NET - Offline POC)'
 
 # ---------------- PUBLISH ARTIFACTS ----------------
