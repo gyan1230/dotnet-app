@@ -37,7 +37,7 @@ steps:
 
 # ---------------- OWASP DEPENDENCY CHECK ----------------
 - script: |
-    echo "Running OWASP Dependency Check with NVD API key"
+    echo "Running OWASP Dependency Check with NVD API key (env-based)"
 
     mkdir -p $(Build.ArtifactStagingDirectory)/owasp
     cd $(Build.SourcesDirectory)
@@ -49,9 +49,10 @@ steps:
       --scan $(Build.SourcesDirectory) \
       --format HTML \
       --out $(Build.ArtifactStagingDirectory)/owasp \
-      --failOnCVSS 7 \
-      --nvdApiKey $(NVD_API_KEY)
+      --failOnCVSS 7
   displayName: 'OWASP Dependency Check (.NET)'
+  env:
+    NVD_API_KEY: $(NVD_API_KEY)
 
 # ---------------- PUBLISH ARTIFACTS ----------------
 - task: PublishBuildArtifacts@1
