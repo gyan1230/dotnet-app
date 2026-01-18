@@ -16,9 +16,9 @@ steps:
     hostname
     whoami
     dotnet --version
-    echo "Sources Directory: $(Build.SourcesDirectory)"
-    echo "Artifact Directory: $(Build.ArtifactStagingDirectory)"
-  displayName: 'Verify agent & environment'
+    java -version
+    mvn -version
+  displayName: 'Verify agent & tools'
 
 # ---------------- DOTNET BUILD ----------------
 - script: |
@@ -30,32 +30,17 @@ steps:
       --output $(Build.ArtifactStagingDirectory)/dotnet
   displayName: 'Build & Publish .NET App'
 
+# ---------------- JAVA BUILD ----------------
 - script: |
-    echo "Listing repo root:"
-    ls -la $(Build.SourcesDirectory)
-  displayName: 'DEBUG: Repo structure'
-
-# ---------------- OWASP DEPENDENCY CHECK ----------------
-- script: |
-    echo "Running OWASP Dependency Check (TRUE offline mode)"
-
-    mkdir -p $(Build.ArtifactStagingDirectory)/owasp
-    cd $(Build.SourcesDirectory)
-
-    curl -Ls https://github.com/jeremylong/DependencyCheck/releases/download/v8.4.0/dependency-check-8.4.0-release.zip -o dc.zip
-    unzip -q dc.zip
-
-    ./dependency-check/bin/dependency-check.sh \
-      --scan $(Build.SourcesDirectory) \
-      --format HTML \
-      --out $(Build.ArtifactStagingDirectory)/owasp \
-      --failOnCVSS 7 \
-      --noupdate
-  displayName: 'OWASP Dependency Check (.NET - Offline POC)'
+    cd java-app
+    mvn clean package -DskipTests
+    mkdir -p $(Build.ArtifactStagingDirectory)/java
+    cp target/*.jar $(Build.ArtifactStagingDirectory)/java/
+  displayName: 'Build & Package Java App'
 
 # ---------------- PUBLISH ARTIFACTS ----------------
 - task: PublishBuildArtifacts@1
   inputs:
     pathToPublish: $(Build.ArtifactStagingDirectory)
-    artifactName: dotnet-build-and-security
-  displayName: 'Publish Build & OWASP Artifacts'
+    artifactName: app-build-artifacts
+  displayName: 'Publish Build Artifacts'

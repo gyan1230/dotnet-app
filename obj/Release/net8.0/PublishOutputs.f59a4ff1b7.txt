@@ -1,5 +1,0 @@
-/home/gyanchand.mohanty@apmosys.mahape/github-gyan/gyan-poc/dotnet-app/bin/Release/net8.0/publish/dotnet-app
-/home/gyanchand.mohanty@apmosys.mahape/github-gyan/gyan-poc/dotnet-app/bin/Release/net8.0/publish/dotnet-app.dll
-/home/gyanchand.mohanty@apmosys.mahape/github-gyan/gyan-poc/dotnet-app/bin/Release/net8.0/publish/dotnet-app.deps.json
-/home/gyanchand.mohanty@apmosys.mahape/github-gyan/gyan-poc/dotnet-app/bin/Release/net8.0/publish/dotnet-app.runtimeconfig.json
-/home/gyanchand.mohanty@apmosys.mahape/github-gyan/gyan-poc/dotnet-app/bin/Release/net8.0/publish/dotnet-app.pdb
