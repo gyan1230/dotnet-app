@@ -13,11 +13,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "/home/gyanchand.mohanty@apmosys.mahape/github-gyan/gyan-poc/dotnet-app/dotnet-app.csproj",
+      "projectUniqueName": "/home/gyanchand.mohanty@apmosys.mahape/github-gyan/gyan-poc/devsecops-poc/dotnet-app/dotnet-app.csproj",
       "projectName": "dotnet-app",
-      "projectPath": "/home/gyanchand.mohanty@apmosys.mahape/github-gyan/gyan-poc/dotnet-app/dotnet-app.csproj",
+      "projectPath": "/home/gyanchand.mohanty@apmosys.mahape/github-gyan/gyan-poc/devsecops-poc/dotnet-app/dotnet-app.csproj",
       "packagesPath": "/home/gyanchand.mohanty@apmosys.mahape/.nuget/packages/",
-      "outputPath": "/home/gyanchand.mohanty@apmosys.mahape/github-gyan/gyan-poc/dotnet-app/obj/",
+      "outputPath": "/home/gyanchand.mohanty@apmosys.mahape/github-gyan/gyan-poc/devsecops-poc/dotnet-app/obj/",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "/home/gyanchand.mohanty@apmosys.mahape/.nuget/NuGet/NuGet.Config"
