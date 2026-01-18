@@ -17,16 +17,18 @@ steps:
     hostname
     whoami
     dotnet --version
-  displayName: 'Verify self-hosted agent'
+    echo "Repo root contents:"
+    ls -la
+  displayName: 'Verify self-hosted agent & repo'
 
 # ---------------- DOTNET BUILD ----------------
 - script: |
+    cd dotnet-app
     dotnet restore
     dotnet build --configuration $(buildConfiguration)
     dotnet publish \
       --configuration $(buildConfiguration) \
       --output ../artifacts/dotnet
-  workingDirectory: dotnet-app
   displayName: 'Build & Publish .NET App'
 
 # ---------------- PUBLISH ARTIFACTS ----------------
