@@ -9,7 +9,7 @@ namespace DotnetApp.Controllers
         [HttpGet]
         public string Get()
         {
-            throw new Exception("Simulated failure for rollback demo");
+            return "Hello from .NET App v5";
         }
     }
 }

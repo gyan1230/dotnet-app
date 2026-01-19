@@ -6,7 +6,7 @@ pool:
 
 variables:
   buildConfiguration: Release
-  appVersion: v5
+  appVersion: v6
 
 stages:
 
