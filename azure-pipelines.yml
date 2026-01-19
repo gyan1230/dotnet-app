@@ -3,71 +3,126 @@ trigger:
 
 pool:
   name: Default
+
 variables:
   buildConfiguration: Release
 
-steps:
-# ---------------- CHECKOUT ----------------
-- checkout: self
+stages:
 
-# ---------------- VERIFY AGENT ----------------
-- script: |
-    echo "Agent info:"
-    hostname
-    whoami
-    dotnet --version
-    java -version
-    mvn -version
-  displayName: 'Verify agent & tools'
+# =========================================================
+# STAGE 1: BUILD
+# =========================================================
+- stage: Build
+  displayName: 'Build Applications'
+  jobs:
+  - job: BuildJob
+    displayName: 'Build .NET & Java'
+    steps:
 
-# ---------------- DOTNET BUILD ----------------
-- script: |
-    cd dotnet-app
-    dotnet restore
-    dotnet build --configuration $(buildConfiguration)
-    dotnet publish \
-      --configuration $(buildConfiguration) \
-      --output $(Build.ArtifactStagingDirectory)/dotnet
-  displayName: 'Build & Publish .NET App'
+    - checkout: self
 
-# ---------------- JAVA BUILD ----------------
-- script: |
-    cd java-app
-    mvn clean package -DskipTests
-    mkdir -p $(Build.ArtifactStagingDirectory)/java
-    cp target/*.jar $(Build.ArtifactStagingDirectory)/java/
-  displayName: 'Build & Package Java App'
+    - script: |
+        echo "Agent info:"
+        hostname
+        whoami
+        dotnet --version
+        java -version
+        mvn -version
+      displayName: 'Verify agent & tools'
+
+    # -------- DOTNET BUILD --------
+    - script: |
+        cd dotnet-app
+        dotnet restore
+        dotnet build --configuration $(buildConfiguration)
+        dotnet publish \
+          --configuration $(buildConfiguration) \
+          --output $(Build.ArtifactStagingDirectory)/dotnet
+      displayName: 'Build & Publish .NET App'
+
+    # -------- JAVA BUILD --------
+    - script: |
+        cd java-app
+        mvn clean package -DskipTests
+        mkdir -p $(Build.ArtifactStagingDirectory)/java
+        cp target/*.jar $(Build.ArtifactStagingDirectory)/java/
+      displayName: 'Build & Package Java App'
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: $(Build.ArtifactStagingDirectory)
+        artifactName: app-build-artifacts
+      displayName: 'Publish Build Artifacts'
 
 
-# ---------------- DEPLOY DOTNET APP ----------------
-- script: |
-    echo "Deploying .NET app on same agent"
+# =========================================================
+# STAGE 2: CODE QUALITY (SONARQUBE)
+# =========================================================
+- stage: CodeQuality
+  displayName: 'SonarQube Analysis'
+  dependsOn: Build
+  jobs:
+  - job: SonarJob
+    displayName: 'Run SonarQube Scan'
+    steps:
 
-    pkill -f dotnet-app.dll || true
+    - checkout: self
 
-    nohup dotnet $(Build.ArtifactStagingDirectory)/dotnet/dotnet-app.dll \
-      > dotnet.log 2>&1 &
+    - task: SonarQubePrepare@7
+      inputs:
+        SonarQube: 'sonarqube-local'
+        scannerMode: 'CLI'
+        configMode: 'manual'
+        cliProjectKey: 'devsecops-poc_devsecops-poc_681aad83-bf5f-4848-b896-ef0098be33b9'
+        cliProjectName: 'DevSecOps POC'
+        cliSources: '.'
+      displayName: 'Prepare SonarQube Analysis'
 
-    sleep 5
-    curl http://localhost:5000/weatherforecast
-  displayName: 'Deploy & Verify .NET App'
+    - task: SonarQubeAnalyze@7
+      displayName: 'Run SonarQube Analysis'
 
-# ---------------- DEPLOY JAVA APP ----------------
-- script: |
-    echo "Deploying Java app on same agent"
+    - task: SonarQubePublish@7
+      inputs:
+        pollingTimeoutSec: '300'
+      displayName: 'Publish Quality Gate Result'
 
-    pkill -f java-app || true
 
-    nohup java -jar $(Build.ArtifactStagingDirectory)/java/*.jar \
-      > java.log 2>&1 &
+# =========================================================
+# STAGE 3: DEPLOY (SAME AGENT – POC)
+# =========================================================
+- stage: Deploy
+  displayName: 'Deploy Applications'
+  dependsOn: CodeQuality
+  jobs:
+  - job: DeployJob
+    displayName: 'Deploy .NET & Java'
+    steps:
 
-    sleep 5
-    curl http://localhost:8080/
-  displayName: 'Deploy & Verify Java App'
+    - download: current
+      artifact: app-build-artifacts
 
-# ---------------- PUBLISH ARTIFACTS ----------------
-- task: PublishBuildArtifacts@1
-  inputs:
-    pathToPublish: $(Build.ArtifactStagingDirectory)
-    artifactName: app-build-artifacts
-  displayName: 'Publish Build Artifacts'
+    # -------- DEPLOY DOTNET --------
+    - script: |
+        echo "Deploying .NET app"
+
+        pkill -f dotnet-app.dll || true
+
+        nohup dotnet $(Pipeline.Workspace)/app-build-artifacts/dotnet/dotnet-app.dll \
+          > dotnet.log 2>&1 &
+
+        sleep 5
+        curl http://localhost:5000/weatherforecast
+      displayName: 'Deploy & Verify .NET App'
+
+    # -------- DEPLOY JAVA --------
+    - script: |
+        echo "Deploying Java app"
+
+        pkill -f java || true
+
+        nohup java -jar $(Pipeline.Workspace)/app-build-artifacts/java/*.jar \
+          > java.log 2>&1 &
+
+        sleep 5
+        curl http://localhost:8080/
+      displayName: 'Deploy & Verify Java App'
