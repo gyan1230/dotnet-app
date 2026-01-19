@@ -6,7 +6,7 @@ pool:
 
 variables:
   buildConfiguration: Release
-  appVersion: v2
+  appVersion: v3
 
 stages:
 
@@ -43,6 +43,7 @@ stages:
   dependsOn: Build
   jobs:
   - job: DeployDotNet
+    displayName: 'Deploy .NET'
     steps:
 
     - download: current
@@ -54,19 +55,30 @@ stages:
         APP_BASE=$HOME/apps/dotnet
         VERSION=$(appVersion)
 
+        echo "Preparing version directory"
+        rm -rf $APP_BASE/$VERSION
         mkdir -p $APP_BASE/$VERSION
 
+        echo "Copying published artifacts"
         cp -r $(Pipeline.Workspace)/dotnet-artifacts/dotnet/$VERSION/* \
           $APP_BASE/$VERSION/
 
+        echo "Deployed files:"
+        ls -l $APP_BASE/$VERSION
+
+        echo "Switching current symlink"
         ln -sfn $APP_BASE/$VERSION $APP_BASE/current
 
+        echo "Stopping old process"
         pkill -f dotnet-app.dll || true
 
+        echo "Starting application"
         nohup dotnet $APP_BASE/current/dotnet-app.dll \
           --urls http://0.0.0.0:5000 \
           > $APP_BASE/dotnet.log 2>&1 &
 
         sleep 5
+
+        echo "Health check"
         curl http://localhost:5000/weatherforecast
       displayName: 'Deploy version $(appVersion)'
