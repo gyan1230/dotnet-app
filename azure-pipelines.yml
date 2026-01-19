@@ -1,11 +1,12 @@
 trigger:
-- main
+- azure-1
 
 pool:
   name: Default
 
 variables:
   buildConfiguration: Release
+  appVersion: v1
 
 stages:
 
@@ -13,116 +14,54 @@ stages:
 # STAGE 1: BUILD
 # =========================================================
 - stage: Build
-  displayName: 'Build Applications'
+  displayName: 'Build .NET App'
   jobs:
-  - job: BuildJob
-    displayName: 'Build .NET & Java'
+  - job: BuildDotNet
     steps:
-
     - checkout: self
 
-    - script: |
-        echo "Agent info:"
-        hostname
-        whoami
-        dotnet --version
-        java -version
-        mvn -version
-      displayName: 'Verify agent & tools'
-
-    # -------- DOTNET BUILD --------
     - script: |
         cd dotnet-app
         dotnet restore
         dotnet build --configuration $(buildConfiguration)
         dotnet publish \
           --configuration $(buildConfiguration) \
-          --output $(Build.ArtifactStagingDirectory)/dotnet
-      displayName: 'Build & Publish .NET App'
-
-    # -------- JAVA BUILD --------
-    - script: |
-        cd java-app
-        mvn clean package -DskipTests
-        mkdir -p $(Build.ArtifactStagingDirectory)/java
-        cp target/*.jar $(Build.ArtifactStagingDirectory)/java/
-      displayName: 'Build & Package Java App'
+          --output $(Build.ArtifactStagingDirectory)/dotnet/$(appVersion)
+      displayName: 'Build .NET App $(appVersion)'
 
     - task: PublishBuildArtifacts@1
       inputs:
         pathToPublish: $(Build.ArtifactStagingDirectory)
-        artifactName: app-build-artifacts
-      displayName: 'Publish Build Artifacts'
-
-
-# =========================================================
-# STAGE 2: CODE QUALITY (SONARQUBE)
-# =========================================================
-- stage: CodeQuality
-  displayName: 'SonarQube Analysis'
-  dependsOn: Build
-  jobs:
-  - job: SonarJob
-    displayName: 'Run SonarQube Scan'
-    steps:
-
-    - checkout: self
-
-    - task: SonarQubePrepare@7
-      inputs:
-        SonarQube: 'sonarqube-local'
-        scannerMode: 'CLI'
-        configMode: 'manual'
-        cliProjectKey: 'devops-poc-key'
-        cliProjectName: 'devops-poc'
-        cliSources: '.'
-      displayName: 'Prepare SonarQube Analysis'
-
-    - task: SonarQubeAnalyze@7
-      displayName: 'Run SonarQube Analysis'
-
-    - task: SonarQubePublish@7
-      inputs:
-        pollingTimeoutSec: '300'
-      displayName: 'Publish Quality Gate Result'
-
+        artifactName: dotnet-artifacts
+      displayName: 'Publish Artifacts'
 
 # =========================================================
-# STAGE 3: DEPLOY (SAME AGENT – POC)
+# STAGE 2: DEPLOY
 # =========================================================
 - stage: Deploy
-  displayName: 'Deploy Applications'
-  dependsOn: CodeQuality
+  displayName: 'Deploy & Rollback'
+  dependsOn: Build
   jobs:
-  - job: DeployJob
-    displayName: 'Deploy .NET & Java'
+  - job: DeployDotNet
     steps:
 
     - download: current
-      artifact: app-build-artifacts
+      artifact: dotnet-artifacts
 
-    # -------- DEPLOY DOTNET --------
     - script: |
-        echo "Deploying .NET app"
+        APP_BASE=/opt/apps/dotnet
+        VERSION=$(appVersion)
 
-        pkill -f dotnet-app.dll || true
+        sudo mkdir -p $APP_BASE/$VERSION
+        sudo cp -r $(Pipeline.Workspace)/dotnet-artifacts/dotnet/$VERSION/* $APP_BASE/$VERSION/
 
-        nohup dotnet $(Pipeline.Workspace)/app-build-artifacts/dotnet/dotnet-app.dll \
+        sudo ln -sfn $APP_BASE/$VERSION $APP_BASE/current
+
+        sudo pkill -f dotnet-app.dll || true
+
+        nohup dotnet $APP_BASE/current/dotnet-app.dll \
           > dotnet.log 2>&1 &
 
         sleep 5
         curl http://localhost:5000/weatherforecast
-      displayName: 'Deploy & Verify .NET App'
-
-    # -------- DEPLOY JAVA --------
-    - script: |
-        echo "Deploying Java app"
-
-        pkill -f java || true
-
-        nohup java -jar $(Pipeline.Workspace)/app-build-artifacts/java/*.jar \
-          > java.log 2>&1 &
-
-        sleep 5
-        curl http://localhost:8080/
-      displayName: 'Deploy & Verify Java App'
+      displayName: 'Deploy version $(appVersion)'
