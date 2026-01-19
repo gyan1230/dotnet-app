@@ -64,6 +64,7 @@ stages:
         pkill -f dotnet-app.dll || true
 
         nohup dotnet $APP_BASE/current/dotnet-app.dll \
+          --urls http://0.0.0.0:5000 \
           > $APP_BASE/dotnet.log 2>&1 &
 
         sleep 5
