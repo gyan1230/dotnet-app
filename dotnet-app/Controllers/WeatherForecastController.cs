@@ -9,7 +9,7 @@ namespace DotnetApp.Controllers
         [HttpGet]
         public string Get()
         {
-            return "Hello from .NET App v1";
+            return "Hello from .NET App v2";
         }
     }
 }
