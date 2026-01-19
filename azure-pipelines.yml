@@ -6,7 +6,7 @@ pool:
 
 variables:
   buildConfiguration: Release
-  appVersion: v3
+  appVersion: v4
 
 stages:
 
@@ -50,35 +50,46 @@ stages:
       artifact: dotnet-artifacts
 
     - script: |
-        echo "Deploying .NET app version $(appVersion)"
+        set -e
 
         APP_BASE=$HOME/apps/dotnet
-        VERSION=$(appVersion)
+        NEW_VERSION=$(appVersion)
+        PREVIOUS_VERSION=$(ls -d $APP_BASE/v* | sort | tail -n 2 | head -n 1 | xargs basename)
 
-        echo "Preparing version directory"
-        rm -rf $APP_BASE/$VERSION
-        mkdir -p $APP_BASE/$VERSION
+        echo "Previous version: $PREVIOUS_VERSION"
+        echo "Deploying new version: $NEW_VERSION"
 
-        echo "Copying published artifacts"
-        cp -r $(Pipeline.Workspace)/dotnet-artifacts/dotnet/$VERSION/* \
-          $APP_BASE/$VERSION/
+        # Prepare new version
+        rm -rf $APP_BASE/$NEW_VERSION
+        mkdir -p $APP_BASE/$NEW_VERSION
 
-        echo "Deployed files:"
-        ls -l $APP_BASE/$VERSION
+        cp -r $(Pipeline.Workspace)/dotnet-artifacts/dotnet/$NEW_VERSION/* \
+          $APP_BASE/$NEW_VERSION/
 
-        echo "Switching current symlink"
-        ln -sfn $APP_BASE/$VERSION $APP_BASE/current
+        # Switch to new version
+        ln -sfn $APP_BASE/$NEW_VERSION $APP_BASE/current
 
-        echo "Stopping old process"
         pkill -f dotnet-app.dll || true
 
-        echo "Starting application"
         nohup dotnet $APP_BASE/current/dotnet-app.dll \
           --urls http://0.0.0.0:5000 \
           > $APP_BASE/dotnet.log 2>&1 &
 
         sleep 5
 
-        echo "Health check"
-        curl http://localhost:5000/weatherforecast
-      displayName: 'Deploy version $(appVersion)'
+        echo "Running health check..."
+        if curl -f http://localhost:5000/weatherforecast; then
+          echo "✅ Deployment successful"
+        else
+          echo "❌ Health check failed — rolling back"
+
+          ln -sfn $APP_BASE/$PREVIOUS_VERSION $APP_BASE/current
+          pkill -f dotnet-app.dll || true
+
+          nohup dotnet $APP_BASE/current/dotnet-app.dll \
+            --urls http://0.0.0.0:5000 \
+            > $APP_BASE/dotnet.log 2>&1 &
+
+          exit 1
+        fi
+      displayName: 'Deploy with Auto Rollback'
