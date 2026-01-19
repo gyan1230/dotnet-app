@@ -49,18 +49,22 @@ stages:
       artifact: dotnet-artifacts
 
     - script: |
-        APP_BASE=/opt/apps/dotnet
+        echo "Deploying .NET app version $(appVersion)"
+
+        APP_BASE=$HOME/apps/dotnet
         VERSION=$(appVersion)
 
-        sudo mkdir -p $APP_BASE/$VERSION
-        sudo cp -r $(Pipeline.Workspace)/dotnet-artifacts/dotnet/$VERSION/* $APP_BASE/$VERSION/
+        mkdir -p $APP_BASE/$VERSION
 
-        sudo ln -sfn $APP_BASE/$VERSION $APP_BASE/current
+        cp -r $(Pipeline.Workspace)/dotnet-artifacts/dotnet/$VERSION/* \
+          $APP_BASE/$VERSION/
 
-        sudo pkill -f dotnet-app.dll || true
+        ln -sfn $APP_BASE/$VERSION $APP_BASE/current
+
+        pkill -f dotnet-app.dll || true
 
         nohup dotnet $APP_BASE/current/dotnet-app.dll \
-          > dotnet.log 2>&1 &
+          > $APP_BASE/dotnet.log 2>&1 &
 
         sleep 5
         curl http://localhost:5000/weatherforecast
