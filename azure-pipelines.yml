@@ -73,7 +73,7 @@ stages:
         SonarQube: 'sonarqube-local'
         scannerMode: 'CLI'
         configMode: 'manual'
-        cliProjectKey: 'devsecops-poc_devsecops-poc_681aad83-bf5f-4848-b896-ef0098be33b9'
+        cliProjectKey: 'devsecops-poc_devsecops-poc_eeb72057-dc44-48bd-81cd-1bf770c3ce21'
         cliProjectName: 'DevSecOps POC'
         cliSources: '.'
       displayName: 'Prepare SonarQube Analysis'
