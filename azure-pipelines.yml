@@ -11,24 +11,58 @@ variables:
 stages:
 
 # =========================================================
-# STAGE 1: BUILD
+# STAGE 1: BUILD + SONAR (MSBUILD MODE – NON BLOCKING)
 # =========================================================
-- stage: Build
-  displayName: 'Build .NET Application'
+- stage: BuildAndQuality
+  displayName: 'Build & SonarQube (.NET)'
   jobs:
   - job: BuildJob
+    displayName: 'Build .NET with Sonar'
     steps:
     - checkout: self
 
+    # ---------- Install SonarScanner ----------
+    - script: |
+        dotnet tool install --global dotnet-sonarscanner || true
+      displayName: 'Install SonarScanner for .NET'
+
+    # ---------- SONAR BEGIN ----------
+    - script: |
+        export DOTNET_ROOT=/usr/share/dotnet
+        export PATH=$DOTNET_ROOT:$PATH:$HOME/.dotnet/tools
+        export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+
+        dotnet sonarscanner begin \
+          /k:"devsecops-dotnet" \
+          /n:"DevSecOps .NET App" \
+          /d:sonar.host.url="http://localhost:9000" \
+          /d:sonar.token="$(SONAR_TOKEN)"
+      displayName: 'SonarQube Begin (Non-blocking)'
+      continueOnError: true
+
+    # ---------- BUILD ----------
     - script: |
         echo "Building version $(appVersion)"
         cd dotnet-app
+
         dotnet restore
         dotnet build --configuration $(buildConfiguration)
+
         dotnet publish \
           --configuration $(buildConfiguration) \
           --output $(Build.ArtifactStagingDirectory)/dotnet/$(appVersion)
       displayName: 'Build & Publish .NET App'
+
+    # ---------- SONAR END ----------
+    - script: |
+        export DOTNET_ROOT=/usr/share/dotnet
+        export PATH=$DOTNET_ROOT:$PATH:$HOME/.dotnet/tools
+        export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+
+        dotnet sonarscanner end \
+          /d:sonar.token="$(SONAR_TOKEN)"
+      displayName: 'SonarQube End'
+      continueOnError: true
 
     - task: PublishBuildArtifacts@1
       inputs:
@@ -37,45 +71,11 @@ stages:
       displayName: 'Publish Build Artifacts'
 
 # =========================================================
-# STAGE 2: CODE QUALITY (SONARQUBE – NON BLOCKING)
-# =========================================================
-- stage: CodeQuality
-  displayName: 'SonarQube Analysis (Visibility Mode)'
-  dependsOn: Build
-  jobs:
-  - job: SonarJob
-    steps:
-    - checkout: self
-
-    - task: SonarQubePrepare@7
-      inputs:
-        SonarQube: 'sonarqube-local'
-        scannerMode: 'CLI'
-        configMode: 'manual'
-        cliProjectKey: 'devsecops-poc_devsecops-poc_67784bc5-9684-4748-949b-724ea4ea68c8'
-        cliProjectName: 'devsecops-poc'
-        cliSources: '.'
-      displayName: 'Prepare SonarQube'
-
-    - task: SonarQubeAnalyze@7
-      displayName: 'Run SonarQube Scan'
-      continueOnError: true   # 🔑 NON-BLOCKING
-
-    - task: SonarQubePublish@7
-      inputs:
-        pollingTimeoutSec: '300'
-      displayName: 'Publish Quality Gate'
-      continueOnError: true   # 🔑 NON-BLOCKING
-
-# =========================================================
-# STAGE 3: SECURITY SCAN (OWASP – NON BLOCKING)
-# =========================================================
-# =========================================================
-# STAGE: SECURITY SCAN (OWASP – NON BLOCKING)
+# STAGE 2: SECURITY SCAN (OWASP – VISIBILITY ONLY)
 # =========================================================
 - stage: SecurityScan
-  displayName: 'OWASP Dependency Check (Visibility Mode)'
-  dependsOn: CodeQuality
+  displayName: 'OWASP Dependency Check'
+  dependsOn: BuildAndQuality
   jobs:
   - job: OwaspJob
     displayName: 'OWASP Scan'
@@ -91,11 +91,11 @@ stages:
 
         if [ ! -d "dependency-check" ]; then
           curl -L -o dc.zip https://github.com/jeremylong/DependencyCheck/releases/download/v9.0.9/dependency-check-9.0.9-release.zip
-          unzip dc.zip
+          unzip -o dc.zip
           mv dependency-check-9.0.9 dependency-check
         fi
 
-        echo "Running OWASP Dependency Check (non-blocking demo)"
+        echo "Running OWASP Dependency Check (non-blocking)"
 
         mkdir -p $(Build.ArtifactStagingDirectory)/owasp-report
 
@@ -104,7 +104,7 @@ stages:
           --format HTML \
           --out $(Build.ArtifactStagingDirectory)/owasp-report \
           || true
-      displayName: 'Run OWASP Dependency Check'
+      displayName: 'Run OWASP Scan'
       continueOnError: true
 
     - task: PublishBuildArtifacts@1
@@ -115,13 +115,14 @@ stages:
       continueOnError: true
 
 # =========================================================
-# STAGE 4: DEPLOY WITH ROLLBACK
+# STAGE 3: DEPLOY WITH AUTO ROLLBACK (RUNTIME ONLY)
 # =========================================================
 - stage: Deploy
-  displayName: 'Deploy with Auto Rollback'
+  displayName: 'Deploy with Rollback'
   dependsOn: SecurityScan
   jobs:
   - job: DeployJob
+    displayName: 'Deploy .NET App'
     steps:
     - download: current
       artifact: dotnet-artifacts
@@ -132,14 +133,14 @@ stages:
         APP_BASE=$HOME/apps/dotnet
         NEW_VERSION=$(appVersion)
 
-        echo "Deploying version $NEW_VERSION"
+        echo "Deploying new version: $NEW_VERSION"
 
         mkdir -p $APP_BASE/$NEW_VERSION
 
         cp -r $(Pipeline.Workspace)/dotnet-artifacts/dotnet/$NEW_VERSION/* \
           $APP_BASE/$NEW_VERSION/
 
-        PREVIOUS_VERSION=$(ls -d $APP_BASE/v* 2>/dev/null | sort | tail -n 1 | xargs basename)
+        PREVIOUS_VERSION=$(readlink $APP_BASE/current | xargs basename 2>/dev/null)
 
         ln -sfn $APP_BASE/$NEW_VERSION $APP_BASE/current
 
@@ -154,5 +155,5 @@ stages:
         echo "Running runtime health check..."
         curl -f http://localhost:5000/WeatherForecast
 
-        echo "Deployment successful"
+        echo "✅ Deployment successful"
       displayName: 'Deploy New Version'
