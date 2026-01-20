@@ -47,7 +47,7 @@ stages:
     steps:
     - checkout: self
 
-    - task: SonarQubePrepare@5
+    - task: SonarQubePrepare@7
       inputs:
         SonarQube: 'sonarqube-local'
         scannerMode: 'CLI'
@@ -57,11 +57,11 @@ stages:
         cliSources: '.'
       displayName: 'Prepare SonarQube'
 
-    - task: SonarQubeAnalyze@5
+    - task: SonarQubeAnalyze@7
       displayName: 'Run SonarQube Scan'
       continueOnError: true   # 🔑 NON-BLOCKING
 
-    - task: SonarQubePublish@5
+    - task: SonarQubePublish@7
       inputs:
         pollingTimeoutSec: '300'
       displayName: 'Publish Quality Gate'
