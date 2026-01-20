@@ -6,7 +6,7 @@ pool:
 
 variables:
   buildConfiguration: Release
-  appVersion: v$(Build.BuildId)
+  appVersion: v6
 
 stages:
 
@@ -52,8 +52,8 @@ stages:
         SonarQube: 'sonarqube-local'
         scannerMode: 'CLI'
         configMode: 'manual'
-        cliProjectKey: 'devsecops-poc'
-        cliProjectName: 'DevSecOps POC'
+        cliProjectKey: 'devsecops-poc_devsecops-poc_67784bc5-9684-4748-949b-724ea4ea68c8'
+        cliProjectName: 'devsecops-poc'
         cliSources: '.'
       displayName: 'Prepare SonarQube'
 
@@ -70,21 +70,41 @@ stages:
 # =========================================================
 # STAGE 3: SECURITY SCAN (OWASP – NON BLOCKING)
 # =========================================================
+# =========================================================
+# STAGE: SECURITY SCAN (OWASP – NON BLOCKING)
+# =========================================================
 - stage: SecurityScan
   displayName: 'OWASP Dependency Check (Visibility Mode)'
   dependsOn: CodeQuality
   jobs:
   - job: OwaspJob
+    displayName: 'OWASP Scan'
     steps:
     - checkout: self
 
     - script: |
+        echo "Installing OWASP Dependency Check"
+
+        OWASP_DIR=$HOME/owasp
+        mkdir -p $OWASP_DIR
+        cd $OWASP_DIR
+
+        if [ ! -d "dependency-check" ]; then
+          curl -L -o dc.zip https://github.com/jeremylong/DependencyCheck/releases/download/v9.0.9/dependency-check-9.0.9-release.zip
+          unzip dc.zip
+          mv dependency-check-9.0.9 dependency-check
+        fi
+
         echo "Running OWASP Dependency Check (non-blocking demo)"
-        dependency-check.sh \
-          --scan . \
+
+        mkdir -p $(Build.ArtifactStagingDirectory)/owasp-report
+
+        $OWASP_DIR/dependency-check/bin/dependency-check.sh \
+          --scan $(Build.SourcesDirectory) \
           --format HTML \
-          --out $(Build.ArtifactStagingDirectory)/owasp-report || true
-      displayName: 'OWASP Dependency Check'
+          --out $(Build.ArtifactStagingDirectory)/owasp-report \
+          || true
+      displayName: 'Run OWASP Dependency Check'
       continueOnError: true
 
     - task: PublishBuildArtifacts@1
