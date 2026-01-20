@@ -102,7 +102,10 @@ stages:
         $OWASP_DIR/dependency-check/bin/dependency-check.sh \
           --scan $(Build.SourcesDirectory) \
           --format HTML \
+          --nvdApiKey $(NVD_API_KEY) \
           --out $(Build.ArtifactStagingDirectory)/owasp-report \
+          --data "$(Pipeline.Workspace)/dependency-check-data" \
+          --failOnCVSS 7
           || true
       displayName: 'Run OWASP Scan'
       continueOnError: true
