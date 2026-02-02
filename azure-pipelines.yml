@@ -75,9 +75,6 @@ stages:
         configMode: 'manual'
         projectKey: 'devsecops-poc_devsecops-dotnet_AZwS4g2W832okabp_S1E'
         projectName: 'devsecops-dotnet'
-        extraProperties: |
-          sonar.cs.cobertura.reportsPaths=$(Agent.TempDirectory)/**/coverage.cobertura.xml
-        # cliSources: '.'
       displayName: 'Prepare SonarQube Analysis'
 
     - task: SonarQubeAnalyze@7
