@@ -70,10 +70,10 @@ stages:
 
     - task: SonarQubePrepare@7
       inputs:
-        SonarQube: 'sonarqube-local'
-        scannerMode: 'CLI'
+        SonarQube: 'dotnetapp-conn'
+        scannerMode: 'dotnet'
         configMode: 'manual'
-        cliProjectKey: 'devsecops-poc_devsecops-dotnet_45a23bb1-178e-47f5-a141-23d6b1a0543f'
+        cliProjectKey: 'devsecops-poc_devsecops-dotnet_AZwS4g2W832okabp_S1E'
         cliProjectName: 'devsecops-dotnet'
         cliSources: '.'
       displayName: 'Prepare SonarQube Analysis'
